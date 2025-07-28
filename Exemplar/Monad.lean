@@ -99,6 +99,8 @@ def inner : List Int -> List Int -> Int := genInner Add.add 0 Mul.mul
 
 #eval inner first second
 
+
+
 -- examples of some unsafe coercions
 
 instance [Monad M]: Coe α (M α) where
