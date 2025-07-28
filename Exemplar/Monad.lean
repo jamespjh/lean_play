@@ -79,15 +79,12 @@ instance [ToList M α] : CoeOut (M α) (List α) where
 --- Zipping and Inner Products ----
 
 class Zippable (M N : Type → Type) α β where
-  zip : (M α) → (N β) → List (α × β)
-  zipWith : (α -> β -> γ) -> (M α) → (N β) → List γ :=
-    fun op xs ys => do
-      let (x, y) <- zip xs ys
-      pure (op x y)
+  zipWith : (α -> β -> γ) -> (M α) → (N β) → List γ
+  zip : (M α) → (N β) → List (α × β) := zipWith Prod.mk
 
-instance {M N : Type → Type} [ToList M α] [ToList N β]: Zippable M N α β  where
-  zip (x: (M α)) (y: (N β) ) :  List (α × β)  :=
-    List.zip x y -- uses coercion to list
+instance [ToList M α] [ToList N β]: Zippable M N α β  where
+  zipWith {γ} (op : (α -> β -> γ)) (x: (M α)) (y: (N β) ) :  List γ :=
+    List.zipWith op x y -- uses coercion to list
 
 #eval Zippable.zip first second
 
@@ -102,15 +99,10 @@ def inner : List Int -> List Int -> Int := genInner Add.add 0 Mul.mul
 
 #eval inner first second
 
-
-
 -- examples of some unsafe coercions
 
 instance [Monad M]: Coe α (M α) where
   coe := pure
-
-
-
 
 #check ( (· + 1) : List (Nat->Nat))
 
