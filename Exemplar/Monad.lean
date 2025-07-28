@@ -49,19 +49,19 @@ def mmprod [HMul α β γ] [Applicative m] : m α -> m β -> m γ := moprod HMul
 
 -- we define for a general forable object
 
-class Foldable (M : Type → Type) α where
-  foldl : ( M α) -> (α → β → β ) -> β -> β
+class Foldable (M : Type → Type) β where
+  foldl :  (α → β → α ) -> α -> ( M β) -> α
 
-instance {M : Type → Type} [ForIn Id (M α) α] : Foldable M α where
-  foldl {β} (xs: M α) (op : (α → β → β )) (init : β) : β := Id.run do
+instance {M : Type → Type} [ForIn Id (M β) β] : Foldable M β where
+  foldl {α}  (op : (α → β → α )) (init : α ) (xs: M β ) : α  := Id.run do
     let mut a := init
     for x in xs do
-      a := op x a
+      a := op a x
     return a
 
-#eval Foldable.foldl first Add.add 0
+#eval Foldable.foldl Add.add 0 first
 
-#eval Foldable.foldl first List.cons []
+#eval Foldable.foldl (fun l e => List.cons e l) [] first
 
 --- turning any iterable into a list ---
 
@@ -69,14 +69,14 @@ class ToList (M : Type -> Type) α where
   toList : (M α ) -> List α
 
 instance {M : Type -> Type} [ForIn Id (M α) α]  : ToList M α where
-  toList (xs: M α) : List α := Foldable.foldl xs List.cons []
+  toList (xs: M α) : List α := Foldable.foldl (fun l e => List.cons e l) [] xs
 
 instance [ToList M α] : CoeOut (M α) (List α) where
   coe := ToList.toList
 
 #eval ToList.toList first
 
---- Zipping and Inner Products ----
+--- Zipping  ----
 
 class Zippable (M N : Type → Type) α β where
   zipWith : (α -> β -> γ) -> (M α) → (N β) → List γ
@@ -92,14 +92,14 @@ def elmul  {M N : Type → Type} [HMul α β γ] [Zippable M N α β]  : M α ->
 
 #eval elmul first second
 
-def genInner {M : Type → Type} {N: Type -> Type } [Zippable M N α β] (op2 : γ → δ → δ ) (init: δ) (op1 : α -> β -> γ) (xs : M α) (ys : N β) : δ :=
-  Foldable.foldl (Zippable.zipWith op1 xs ys) op2 init
+-- Inner products --
+
+def genInner {M : Type → Type} {N: Type -> Type } [Zippable M N α β] (op2 :  δ -> γ → δ ) (init: δ) (op1 : α -> β -> γ) (xs : M α) (ys : N β) : δ :=
+  Foldable.foldl op2 init (Zippable.zipWith op1 xs ys)
 
 def inner : List Int -> List Int -> Int := genInner Add.add 0 Mul.mul
 
 #eval inner first second
-
-
 
 -- examples of some unsafe coercions
 
