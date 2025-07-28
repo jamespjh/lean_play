@@ -69,7 +69,7 @@ class ToList (M : Type -> Type) α where
   toList : (M α ) -> List α
 
 instance {M : Type -> Type} [ForIn Id (M α) α]  : ToList M α where
-  toList (xs: M α) : List α := Foldable.foldl (fun l e => List.cons e l) [] xs
+  toList (xs: M α) : List α := Foldable.foldl (fun l e => l ++ [e]) [] xs
 
 instance [ToList M α] : CoeOut (M α) (List α) where
   coe := ToList.toList
