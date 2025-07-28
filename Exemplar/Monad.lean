@@ -21,29 +21,8 @@ def second := [4, 5, 6]
 def fpo := do
   pure (1 + (<-first))
 
-def fprod [Mul α] (x : List α) (y : List α) : List α := do
-      pure ((<-x) * (<-y))
-
-def prod [Mul α] (x : List α) (y : List α) : List (List α) := do
-  let ax <- x
-  pure do
-    let ay <- y
-    pure (ax * ay)
-
-def mfprod [HMul α β γ] [Monad m] (x: m α) (y: m β) : m γ := do
-  pure ((<-x) * (<-y))
-
-def xlprod [Mul α] (x : List α) (y : List α) : List α :=
-  ([(· * ·)] <*> x <*> y)
-
-def fmprod [HMul α β γ] [Monad m] (x : m α) (y: m β) : m γ :=
-  pure (· * ·) <*> x <*> y
-
-def mprod [HMul α β γ] [Monad m] (x : m α) (y: m β) : m (m γ) := do
-  let ax <- x
-  pure do
-    let ay <- y
-    pure (ax * ay)
+def moprod [Applicative m] (op : α -> β -> γ) (x : m α) (y: m β) : m γ :=
+  (pure op) <*> x <*> y
 
 def fpprod [Monad m] (op : α -> β -> γ) (x: m α) (y: m β) : m γ := do
   pure (op (← x) (← y))
@@ -54,15 +33,7 @@ def mpprod [Monad m] (op : α -> β -> γ) (x: m α) (y: m β) : m (m γ) := do
     let ay <- y
     pure (op ax ay)
 
-
-
-#eval fprod first second
-
-#eval prod first second
-
-#eval fmprod first second
-
-#eval mfprod first second
+def mmprod [HMul α β γ] [Applicative m] : m α -> m β -> m γ := moprod HMul.hMul
 
 #eval fpprod (· * ·) first second
 
@@ -70,38 +41,50 @@ def mpprod [Monad m] (op : α -> β -> γ) (x: m α) (y: m β) : m (m γ) := do
 
 #eval mpprod (·.toString ++ ·.toString) "Hello".toList "World".toList
 
-class Zippable (coll: Type -> Type) where
-  zip : coll α → coll β → coll (α × β)
-
-def inner [HMul α β γ] [Monad M] [Zippable M] (x : M α) (y : M β) : M γ := do
-  let (ax, ay) <- Zippable.zip x y
-  pure (ax * ay)
-
-def pinner [Monad M] [Zippable M] (op : α -> β -> γ) (x : M α) (y : M β) : M γ := do
-  let (ax, ay) <- Zippable.zip x y
-  pure (op ax ay)
-
-instance : Zippable List where
-  zip  := List.zip
-
-#eval inner first second
-
-#eval pinner Mul.mul first second
+#eval mmprod first second
 
 ---- reductions ----
 
-def reduce [Zero β] [Monad M] [ForIn Id (M α) α] (op: β → α → β ) (xs: M α) : β := Id.run do
-  let mut a := (0: β)
+def reduce {M : Type → Type} [ForIn Id (M α) α] (op: α → β → β ) (init: β) (xs: M α) : β := Id.run do
+  let mut a := init
   for x in xs do
-    a := op a x
+    a := op x a
   return a
 
-def fred  [Zero β] [Monad M] (op: β → α → β ) (xs: M α) : β :=
-  -- make a state monad with int as a transformed version of M
+#eval reduce Add.add 0 first
 
+#eval reduce List.cons [] first
 
+--- Zipping and Inner Products ----
 
-#eval reduce Add.add first
+def toList {M : Type → Type} [ForIn Id (M α) α] (xs: M α) : List α := reduce List.cons [] xs
+
+#eval toList first
+
+class Zippable (M N : Type → Type) α β where
+  zip : (M α) → (N β) → List (α × β)
+  zipWith : (α -> β -> γ) -> (M α) → (N β) → List γ :=
+    fun op xs ys => do
+      let (x, y) <- zip xs ys
+      pure (op x y)
+
+instance {M N : Type → Type} [ForIn Id (M α) α] [ForIn Id (N β ) β]: Zippable M N α β  where
+  zip (x: (M α)) (y: (N β) ) :  List (α × β)  :=
+    List.zip (toList x) (toList y)
+
+#eval Zippable.zip first second
+
+def elmul  {M N : Type → Type} [HMul α β γ] [Zippable M N α β]  : M α -> N β -> List γ :=
+  Zippable.zipWith HMul.hMul
+
+#eval elmul first second
+
+def genInner {M : Type → Type} {N: Type -> Type } [Zippable M N α β] (op2 : γ → δ → δ ) (init: δ): (α -> β -> γ) -> (M α) -> (N β) -> δ :=
+  fun op1 xs ys => reduce op2 init (Zippable.zipWith op1 xs ys)
+
+def inner : List Int -> List Int -> Int := genInner Add.add 0 Mul.mul
+
+#eval inner first second
 
 -- examples of some unsafe coercions
 
