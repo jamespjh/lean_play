@@ -149,22 +149,3 @@ theorem all_of_singleton  {P : α → Prop} {a : α} (h : P a) : ∀ x ∈ [a], 
     cases hx
     { rw hx, exact h }
     { cases hx }
-
-theorem oneIsIncreasing : IncreasingList [1] :=
-  IncreasingList.cons 1 emptyIsIncreasing ( all_gt_empty 1 )
-
-theorem twoIsIncreasing : IncreasingList [1, 2] :=
-  IncreasingList.cons 2 oneIsIncreasing ( 1 < 2 )
-
-def subtractIncreasingList( l1 l2 : List Nat) : List Nat :=
-  match l1, l2 with
-  | [], _ => []
-  | _, [] => l1
-  | x :: xs, y :: ys =>
-    if x < y then x :: subtractIncreasingList xs l2
-    else if x > y then subtractIncreasingList l1 ys
-    else subtractIncreasingList xs ys
-
-#eval subtractIncreasingList [1, 2, 3, 4, 5] [2, 3, 5]
-
-#eval removePred (fun n => n % 2 == 0) [1, 2, 3, 4, 5]
