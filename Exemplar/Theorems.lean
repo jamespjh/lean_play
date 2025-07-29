@@ -17,6 +17,10 @@ theorem add_zero : ∀ n : ℕ, 0 + n = n := by
     | zero => rfl
     | succ n hyp => rw [def_add_one 0 n, hyp]
 
+theorem zero_commutative : ∀ n : ℕ, 0 + n = n + 0 := by
+  intro n
+  rw [add_zero, zero_add]
+
 #check ℕ
 
 theorem add_one_left : ∀ (n m : ℕ),  (n + 1) + m  = (n + m) + 1 := by
@@ -28,5 +32,5 @@ theorem add_one_left : ∀ (n m : ℕ),  (n + 1) + m  = (n + m) + 1 := by
 theorem comm : ∀ (n m : ℕ), n + m = m + n := by
   intro n m
   induction n with
-    | zero => rw [zero_add, add_zero]
-    | succ n ih => rw [add_one_left, ih, <- def_add_one]
+    | zero => rw [zero_commutative]
+    | succ n ih => rw [add_one_left n m, def_add_one m n, ih]

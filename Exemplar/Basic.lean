@@ -126,19 +126,19 @@ inductive Palindrome : List α → Prop where
   | single (a : α) : Palindrome [a]
   | sandwich (a : α) (ev : Palindrome as): Palindrome ([a] ++ as ++ [a])
 
-inductive IncreasingList [LT α]: List α -> Prop where
-  | nil : IncreasingList []
-  | cons {xs: List α} (x:α) (inp: IncreasingList xs) (ev: (∀ y ∈ xs, y < x)): IncreasingList (x :: xs)
+#check 1 < 2
+#check Palindrome [1, 2, 1]
 
-def ll : List Nat := [1, 2, 3, 4, 5]
+example : Palindrome [1] :=
+  Palindrome.single 1
 
-def ll2 : List Nat := [1]
+example : 1 < 2 := by
+  decide
 
-theorem emptyIsIncreasing : IncreasingList ([]: List Nat) :=
-  IncreasingList.nil
+example : Palindrome [1, 2, 1] :=
+  Palindrome.sandwich 1 (Palindrome.single 2)
 
-theorem all_gt_empty [LT α] (x : α) : ∀ y ∈ ([] : List α), y < x :=
-  by intros y h; cases h
+
 
 -- this is autogen code from copilot, it's wrong
 
