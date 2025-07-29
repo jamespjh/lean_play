@@ -1,32 +1,32 @@
-
+import Mathlib.Data.Nat.Basic
 set_option pp.parens true
 
-example (n m:Nat) :  (m + n) + 1 = m + (n + 1) := by
+namespace J
+
+theorem def_add_one : ∀ (n m : Nat),  n + (m + 1) = (n + m) + 1 := by
+  intros
   rfl -- this is one of the definitions of addition
 
-example (n : Nat) : n + 0 = n := by
+theorem zero_add : ∀ n : Nat, n + 0 = n := by
+  intros
   rfl -- this is one of the definitions of addition
 
-theorem zpnen (n: Nat) :  0 + n = n + 0 := by
+theorem add_zero : ∀ n : Nat, n = 0 + n := by
+  intro n
   induction n with
     | zero => rfl
-    | succ n hyp => calc
-      0 + (n + 1) = (0 + n) + 1 := by rfl
-                  _ = (n + 0) + 1 := by rw [hyp]
-                  _ = n + 1 := by rfl
+    | succ n hyp => rw [def_add_one 0 n, <-hyp]
 
-theorem spmn (n m:Nat) : (m + n) + 1 = (m + 1) + n := by
-  induction n with
+#check ℕ
+
+theorem add_one_left : ∀ (n m : Nat),  (n + 1) + m  = (n + m) + 1 := by
+  intro n m
+  induction m with
     | zero => rfl
-    | succ n ih => calc
-      (m + (n + 1)) + 1 = ((m + n) + 1) + 1 := by rfl
-                      _ = ((m + 1) + n) + 1 := by rw [ih]
-                      _ = (m + 1) + (n + 1) := by rfl
+    | succ m ih => rw [def_add_one n m, def_add_one (n+1) m,  ih]
 
-theorem comm (n m:Nat) : n + m = m + n := by
+theorem comm : ∀ (n m : Nat), n + m = m + n := by
+  intro n m
   induction n with
-    | zero => rw [zpnen]
-    | succ n ih => calc
-      (n + 1) + m = (n + m) + 1 := by rw [spmn]
-                  _ = (m + n) + 1 := by rw [ih]
-                  _ = m + (n + 1) := by rfl
+    | zero => rw [zero_add, <- add_zero]
+    | succ n ih => rw [add_one_left, ih, <- def_add_one]
