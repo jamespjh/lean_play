@@ -138,7 +138,47 @@ example : 1 < 2 := by
 example : Palindrome [1, 2, 1] :=
   Palindrome.sandwich 1 (Palindrome.single 2)
 
+open List
 
+example {α : Type} {qh : α} {qt a : List α}
+    (hsub : (qh :: qt) ⊆ a) : qh ∈ a := by
+  -- unfold Subset to use it
+  apply hsub
+  -- prove qh ∈ qh :: qt
+  apply mem_cons_self
+
+example {α : Type} (q a : List α) (hsub : q ⊆ a) :
+    q = [] ∨ ∃ qh qt, q = qh :: qt ∧ qh ∈ a := by
+  cases q with
+  | nil =>
+    left
+    rfl
+  | cons qh qt =>
+    right
+    apply Exists.intro qh
+    apply Exists.intro qt
+    apply And.intro
+    · rfl
+    · apply hsub
+      apply mem_cons_self
+
+theorem can_assume_r_in_or (p q : Prop) (ev: q): p ∨ (q ∧ ¬ p) := by
+  cases Classical.em p
+  with
+    | inl h => exact Or.inl h
+    | inr h' => apply Or.inr ; constructor ; assumption ; assumption
+
+
+example [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (a b c : α ) (h₁ : a < b) (h₂ : b < c) : a < c :=
+  trans h₁ h₂
+
+
+
+theorem unify_ineq [LT α][Trans LT.lt LT.lt (@LT.lt α _)] (xs: List α) (x: α) (ev1: ∀ y ∈ xs, y < z) (ev2: z < x): (∀ y ∈ xs, y < x) := by
+  intros y hy
+  have h1 : y < z := ev1 y hy
+  have h2 : z < x := ev2
+  exact trans h1 h2
 
 -- this is autogen code from copilot, it's wrong
 
