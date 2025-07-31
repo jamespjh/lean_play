@@ -72,7 +72,7 @@ example: IncreasingListP [3, 2, 1] :=
 
 -- We'll make some lemmas that will be useful to prove things about our functions
 
-theorem child_list_increasing_if_parent_is {α : Type} {x: α} [LT α] (ys: List α) (h : IncreasingListP (x :: ys)) : IncreasingListP ys :=
+theorem child_list_increasing_if_parent_is {α : Type} {x: α} [LT α] {ys: List α} (h : IncreasingListP (x :: ys)) : IncreasingListP ys :=
   match h with
   | IncreasingListP.single _ => IncreasingListP.nil
   | IncreasingListP.cons _ ev _ => by
@@ -83,7 +83,7 @@ theorem unfold_increasing_list_once {α : Type} {x: α} {y: α } {ys: List α} [
   | IncreasingListP.cons _ ev lt => by
     exact ⟨lt, ev⟩
 
-theorem head_is_bigger_than_all_the_rest  {α : Type}  [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (xs: List α) : (x: α) -> IncreasingListP (x :: xs) ->  ∀ z ∈ xs, z < x := by
+theorem head_is_bigger_than_all_the_rest  {α : Type}  [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] {xs: List α} : ∀ x, IncreasingListP (x :: xs) ->  ∀ z ∈ xs, z < x := by
   induction xs with
   | nil => intro x h z hz; cases hz
   | cons y ys ih =>
@@ -113,7 +113,7 @@ theorem unsafe_subtract_generates_subset {α : Type} [Ord α] (l1 : List α) : �
       | .gt => simp [hyp1 (w::ws)] -- E
 
 theorem unsafe_subtract_generates_increasing {α : Type} [Ord α] [LT α] [Trans LT.lt LT.lt (@LT.lt α _)]
-  (l1 : List α) (h : IncreasingListP l1) : ∀ l2, IncreasingListP (unsafeSubtract l1 l2) := by
+  {l1 : List α} (h : IncreasingListP l1) : ∀ l2, IncreasingListP (unsafeSubtract l1 l2) := by
   induction l1 with
   | nil => unfold unsafeSubtract; simp; exact IncreasingListP.nil --A
   | cons z zs hyp1 =>
@@ -124,16 +124,16 @@ theorem unsafe_subtract_generates_increasing {α : Type} [Ord α] [LT α] [Trans
       unfold unsafeSubtract
       match compare z w with
       | .lt => exact hyp2 -- C
-      | .eq => exact hyp1 (child_list_increasing_if_parent_is zs h) ws --D
+      | .eq => exact hyp1 (child_list_increasing_if_parent_is h) ws --D
       | .gt =>
-        simp [child_list_increasing_if_parent_is zs h] at hyp1;
+        simp [child_list_increasing_if_parent_is h] at hyp1;
         generalize q : unsafeSubtract zs (w :: ws) = qq
         cases qq with
         | nil => exact IncreasingListP.single z -- Part of (E) - occurs when neither zs nor l2 is empty, but they are equal
         | cons qh qt =>
           have k := unsafe_subtract_generates_subset zs (w::ws)
           have j := hyp1 (w::ws)
-          have t := head_is_bigger_than_all_the_rest zs z h
+          have t := head_is_bigger_than_all_the_rest z h
           rw [q] at j k
           have qhmem : qh ∈ zs := by
             apply k
@@ -141,7 +141,7 @@ theorem unsafe_subtract_generates_increasing {α : Type} [Ord α] [LT α] [Trans
           have jj := t qh qhmem
           exact IncreasingListP.cons z j jj -- E
 
-theorem is_increasing_list_is_increasing {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : isIncreasing xs -> (IncreasingListP xs) := by
+theorem is_increasing_list_is_increasing {α : Type} [LT α] [DecidableRel (@LT.lt α _)] {xs : List α} : isIncreasing xs -> (IncreasingListP xs) := by
   induction xs with
   | nil => intro; exact IncreasingListP.nil -- A
   | cons x xs ih =>
@@ -176,14 +176,14 @@ instance [LT α] [ToString α] : ToString (IncreasingList α) where
 
 def toIncreasingList? (xs: List α) [LT α] [DecidableRel (@LT.lt α _)] : (Option (IncreasingList α )) :=
   if h : isIncreasing xs then
-    let z: IncreasingListP xs := is_increasing_list_is_increasing xs h
+    let z: IncreasingListP xs := is_increasing_list_is_increasing h
     some ⟨xs, z⟩
   else
     none
 
 def subtractIncreasingList {α : Type} [Ord α] [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (l1 : IncreasingList α) (l2 : IncreasingList α) : IncreasingList α :=
   let newList := unsafeSubtract l1.xs l2.xs
-  let h := unsafe_subtract_generates_increasing l1.xs l1.h l2.xs
+  let h := unsafe_subtract_generates_increasing l1.h l2.xs
   ⟨newList, h⟩
 
 instance: Coe (List Nat) (Option (IncreasingList Nat)) where
