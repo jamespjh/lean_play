@@ -65,24 +65,12 @@ theorem to: IncreasingListP [2, 1] :=
 example: IncreasingListP [3, 2, 1] :=
   IncreasingListP.cons 3 (IncreasingListP.cons 2 (IncreasingListP.single 1) (by decide)) (by decide)
 
--- This is the type of evidence that would prove a list is increasing
-def evidence_for_increasing_list [LT α ] (xs : List α) : Prop :=
-  match xs with
-  | [] => True
-  | [x] => True
-  | x :: y :: xs =>
-    (y < x) ∧ (evidence_for_increasing_list (y :: xs))
+-- Now we could assert that the lists have the right property,
+-- Our work still has the flaw that the result is not guaranteed to be increasing
 
--- This is the theorem that that evidence shows the list is increasing
-theorem list_increasing_if_contents_are {α : Type} [LT α] {xs : List α}
-    (h : evidence_for_increasing_list xs) : IncreasingListP xs :=
-  match xs with
-  | [] => IncreasingListP.nil
-  | [x] => IncreasingListP.single x
-  | x :: _ :: _ =>
-    match h with
-    | ⟨lt, rest⟩  =>
-      IncreasingListP.cons x (list_increasing_if_contents_are rest) lt
+-- Let's try to prove things about our proposition
+
+-- We'll make some lemmas that will be useful to prove things about our functions
 
 theorem child_list_increasing_if_parent_is {α : Type} {x: α} [LT α] (ys: List α) (h : IncreasingListP (x :: ys)) : IncreasingListP ys :=
   match h with
@@ -108,25 +96,7 @@ theorem head_is_bigger_than_all_the_rest  {α : Type}  [LT α] [Trans LT.lt LT.l
     | head => exact l
     | tail s w => exact trans (n w) l
 
-theorem ftto : IncreasingListP [4, 3, 2, 1] := by
-  apply list_increasing_if_contents_are
-  repeat unfold evidence_for_increasing_list
-  decide
-
-theorem fd : IncreasingListP [5, 4, 3, 2, 1] := by
-  apply list_increasing_if_contents_are
-  repeat unfold evidence_for_increasing_list
-  decide
-
-theorem td : IncreasingListP [ 4, 2, 1] := by
-  apply list_increasing_if_contents_are
-  repeat unfold evidence_for_increasing_list
-  decide
-
--- Now we could assert that the lists have the right property,
--- Our work still has the flaw that the result is not guaranteed to be increasing
-
--- Let's try to prove things about the unsafe function
+-- And about our functions
 
 theorem unsafe_subtract_generates_subset {α : Type} [Ord α] (l1 : List α) : ∀ l2, (unsafeSubtract l1 l2) ⊆ l1 := by
   induction l1 with
@@ -221,6 +191,7 @@ instance: Coe (List Nat) (Option (IncreasingList Nat)) where
 
 #eval toIncreasingList? fives
 #eval toIncreasingList? fives_back
+#eval toIncreasingList? [7, 4, 1]
 
 #eval (fives_back : Option (IncreasingList Nat))
 #eval (fives : Option (IncreasingList Nat))
