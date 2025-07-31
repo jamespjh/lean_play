@@ -6,25 +6,41 @@
 -- note without proof, the function is not safe
 def unsafeSubtract {α : Type} [Ord α] (l1 l2 : List α) : List α :=
   match l1, l2 with
-  | [], _ => []
-  | _, [] => l1
+  | [], _ => [] -- A
+  | _, [] => l1 -- B
   | x :: xs, y :: ys =>
     match compare x y with
-    | .lt => unsafeSubtract (x :: xs) ys
-    | .eq => unsafeSubtract xs ys
-    | .gt => x :: unsafeSubtract xs (y :: ys)
+    | .lt => unsafeSubtract (x :: xs) ys -- C
+    | .eq => unsafeSubtract xs ys -- D
+    | .gt => x :: unsafeSubtract xs (y :: ys) -- E
 
-#eval unsafeSubtract [5, 4, 3, 2, 1] [1, 2, 3]
+-- The alphabetic tags will be used to refer to the cases in the proof below
+
+def fives : List Nat := [5, 4, 3, 2, 1]
+def threes : List Nat := [3, 2, 1]
+
+#eval unsafeSubtract fives threes
 
 -- We can wrap the lists with an option or exception to handle the problem
 
-def toMaybeList {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : Option (List α) :=
+def isIncreasing {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : Bool :=
   match xs with
-  | [] => some []
-  | [x] => some [x]
+  | [] => true -- A
+  | [x] => true -- B
   | x :: y :: ys =>
-      if y < x then some (x :: y :: ys)
-      else none
+    if y < x then isIncreasing (y :: ys) -- C
+    else false --D
+
+#eval isIncreasing fives
+
+def fives_back := [1, 2, 3, 4, 5]
+#eval isIncreasing fives_back
+
+def toList? {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : Option (List α) :=
+  if isIncreasing xs then
+    some xs
+  else
+    none
 
 -- But Lean idiom resolves this more powerfully, by proving the list is as it should be.
 
@@ -107,47 +123,43 @@ theorem td : IncreasingListP [ 4, 2, 1] := by
   repeat unfold evidence_for_increasing_list
   decide
 
--- Now we can assert that the lists have the right property, but this has the flaw that the result is not guaranteed to be increasing
+-- Now we could assert that the lists have the right property,
+-- Our work still has the flaw that the result is not guaranteed to be increasing
 
 -- Let's try to prove things about the unsafe function
 
-theorem member_lemma_lists_one : a ∈ xs -> a ∈ x::xs := by
-  intro h
-  simp
-  exact Or.inr h
-
 theorem unsafe_subtract_generates_subset {α : Type} [Ord α] (l1 : List α) : ∀ l2, (unsafeSubtract l1 l2) ⊆ l1 := by
   induction l1 with
-  | nil => intro l2; unfold unsafeSubtract; simp
+  | nil => intro l2; unfold unsafeSubtract; simp -- A
   | cons z zs hyp1 =>
     intro l2
     induction l2 with
-    | nil => unfold unsafeSubtract; simp
+    | nil => unfold unsafeSubtract; simp -- B
     | cons w ws hyp2 =>
       unfold unsafeSubtract
       match compare z w with
-      | .lt => exact hyp2
-      | .eq => simp [hyp1 ws]
-      | .gt => simp [hyp1 (w::ws)]
+      | .lt => exact hyp2 -- C
+      | .eq => simp [hyp1 ws] -- D
+      | .gt => simp [hyp1 (w::ws)] -- E
 
 theorem unsafe_subtract_generates_increasing {α : Type} [Ord α] [LT α] [Trans LT.lt LT.lt (@LT.lt α _)]
   (l1 : List α) (h : IncreasingListP l1) : ∀ l2, IncreasingListP (unsafeSubtract l1 l2) := by
   induction l1 with
-  | nil => unfold unsafeSubtract; simp; exact IncreasingListP.nil
+  | nil => unfold unsafeSubtract; simp; exact IncreasingListP.nil --A
   | cons z zs hyp1 =>
     intro l2
     induction l2 with
-    | nil => unfold unsafeSubtract; exact h
+    | nil => unfold unsafeSubtract; exact h --B
     | cons w ws hyp2 =>
       unfold unsafeSubtract
       match compare z w with
-      | .lt => exact hyp2
-      | .eq => exact hyp1 (child_list_increasing_if_parent_is zs h) ws
+      | .lt => exact hyp2 -- C
+      | .eq => exact hyp1 (child_list_increasing_if_parent_is zs h) ws --D
       | .gt =>
         simp [child_list_increasing_if_parent_is zs h] at hyp1;
         generalize q : unsafeSubtract zs (w :: ws) = qq
         cases qq with
-        | nil => exact IncreasingListP.single z
+        | nil => exact IncreasingListP.single z -- Part of (E) - occurs when neither zs nor l2 is empty, but they are equal
         | cons qh qt =>
           have k := unsafe_subtract_generates_subset zs (w::ws)
           have j := hyp1 (w::ws)
@@ -157,11 +169,27 @@ theorem unsafe_subtract_generates_increasing {α : Type} [Ord α] [LT α] [Trans
             apply k
             apply List.mem_cons_self
           have jj := t qh qhmem
-          exact IncreasingListP.cons z j jj
+          exact IncreasingListP.cons z j jj -- E
 
+theorem is_increasing_list_is_increasing {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : isIncreasing xs -> (IncreasingListP xs) := by
+  induction xs with
+  | nil => intro; exact IncreasingListP.nil -- A
+  | cons x xs ih =>
+    intro h
+    match xs with
+    | [] => exact IncreasingListP.single x -- B
+    | y :: ys =>
+      unfold isIncreasing at h
+      simp at h
+      cases h with | intro lt rest =>
+      exact IncreasingListP.cons x (ih rest) lt -- C
+      -- D is false by assumption
 
+-- And still need to prove the function correct, :
+-- it has none of the l2s in the answer
+-- and all of the l1s that are not in l2
 
----- With these theorems, we can make a type wrapping the list with the method wrapped in structure ----
+-- We can now combine the evidence and data into a structure and present functions that treat it as a single type--
 
 structure IncreasingList (α :Type) [LT α ] : Type where
   xs : List α
@@ -174,27 +202,28 @@ def IncreasingList.cons {α : Type} [LT α] (x : α) (y:α) (ys: List α) (h : I
   ⟨ x :: y :: ys, IncreasingListP.cons x h lt ⟩
 
 instance [LT α] [ToString α] : ToString (IncreasingList α) where
-  toString l := l.xs.toString
+  toString l := l.xs.toString ++ " (proved increasing)"
 
-def toMaybeIncList (xs: List Nat) : (Option (IncreasingList Nat)) :=
-  match xs with
-  | [] => some ⟨[], IncreasingListP.nil⟩
-  | [x] => some ⟨[x], IncreasingListP.single x⟩
-  | x :: xs =>
-    let rest := toMaybeIncList xs
-    match rest with
-    | some ⟨ y :: ys, h ⟩ =>
-      if h2 : y < x then
-        some ⟨ x :: y :: ys, IncreasingListP.cons x h h2 ⟩
-      else none
-    | some ⟨ [], _ ⟩ => some ⟨ [x], IncreasingListP.single x ⟩ -- does not occur, but needed as lean doesn't know
-    | none => none
+def toIncreasingList? (xs: List Nat) : (Option (IncreasingList Nat)) :=
+  if h : isIncreasing xs then
+    let z: IncreasingListP xs := is_increasing_list_is_increasing xs h
+    some ⟨xs, z⟩
+  else
+    none
+
+def subtractIncreasingList {α : Type} [Ord α] [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (l1 : IncreasingList α) (l2 : IncreasingList α) : IncreasingList α :=
+  let newList := unsafeSubtract l1.xs l2.xs
+  let h := unsafe_subtract_generates_increasing l1.xs l1.h l2.xs
+  ⟨newList, h⟩
 
 instance: Coe (List Nat) (Option (IncreasingList Nat)) where
-  coe xs := toMaybeIncList xs
+  coe xs := toIncreasingList? xs
 
-#eval (toMaybeIncList [5, 4, 3, 2, 1])
-#eval (toMaybeIncList [1, 2, 3, 4])
+#eval toIncreasingList? fives
+#eval toIncreasingList? fives_back
 
-#eval ([5, 4, 3, 2, 1] : Option (IncreasingList Nat))
-#eval ([1, 2, 3, 4] : Option (IncreasingList Nat))
+#eval (fives_back : Option (IncreasingList Nat))
+#eval (fives : Option (IncreasingList Nat))
+
+-- run the subtraction in a monadic context
+#eval do pure (subtractIncreasingList (← toIncreasingList? fives) (←threes))

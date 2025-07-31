@@ -172,7 +172,10 @@ theorem can_assume_r_in_or (p q : Prop) (ev: q): p ∨ (q ∧ ¬ p) := by
 example [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (a b c : α ) (h₁ : a < b) (h₂ : b < c) : a < c :=
   trans h₁ h₂
 
-
+theorem member_lemma_lists_one : a ∈ xs -> a ∈ x::xs := by
+  intro h
+  simp
+  exact Or.inr h
 
 theorem unify_ineq [LT α][Trans LT.lt LT.lt (@LT.lt α _)] (xs: List α) (x: α) (ev1: ∀ y ∈ xs, y < z) (ev2: z < x): (∀ y ∈ xs, y < x) := by
   intros y hy
