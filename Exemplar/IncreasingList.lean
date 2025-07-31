@@ -26,7 +26,7 @@ def threes : List Nat := [3, 2, 1]
 def isIncreasing {α : Type} [LT α] [DecidableRel (@LT.lt α _)] (xs : List α) : Bool :=
   match xs with
   | [] => true -- A
-  | [x] => true -- B
+  | [_] => true -- B
   | x :: y :: ys =>
     if y < x then isIncreasing (y :: ys) -- C
     else false --D
@@ -174,7 +174,7 @@ def IncreasingList.cons {α : Type} [LT α] (x : α) (y:α) (ys: List α) (h : I
 instance [LT α] [ToString α] : ToString (IncreasingList α) where
   toString l := l.xs.toString ++ " (proved increasing)"
 
-def toIncreasingList? (xs: List Nat) : (Option (IncreasingList Nat)) :=
+def toIncreasingList? (xs: List α) [LT α] [DecidableRel (@LT.lt α _)] : (Option (IncreasingList α )) :=
   if h : isIncreasing xs then
     let z: IncreasingListP xs := is_increasing_list_is_increasing xs h
     some ⟨xs, z⟩
