@@ -55,11 +55,29 @@ theorem list_increasing_if_contents_are {α : Type} [LT α] {xs : List α}
     | ⟨lt, rest⟩  =>
       IncreasingListP.cons x (list_increasing_if_contents_are rest) lt
 
-theorem child_list_increasing_if_parent_is {α : Type} {x: α} {ys: List α} [LT α] (h : IncreasingListP (x :: ys)) : IncreasingListP ys :=
+theorem child_list_increasing_if_parent_is {α : Type} {x: α} [LT α] (ys: List α) (h : IncreasingListP (x :: ys)) : IncreasingListP ys :=
   match h with
   | IncreasingListP.single _ => IncreasingListP.nil
   | IncreasingListP.cons _ ev _ => by
     exact ev
+
+theorem unfold_increasing_list_once {α : Type} {x: α} {y: α } {ys: List α} [LT α] (h : IncreasingListP (x :: y :: ys)) : (y < x) ∧ IncreasingListP (y :: ys) :=
+  match h with
+  | IncreasingListP.cons _ ev lt => by
+    exact ⟨lt, ev⟩
+
+theorem head_is_bigger_than_all_the_rest  {α : Type}  [LT α] [Trans LT.lt LT.lt (@LT.lt α _)] (xs: List α) : (x: α) -> IncreasingListP (x :: xs) ->  ∀ z ∈ xs, z < x := by
+  induction xs with
+  | nil => intro x h z hz; cases hz
+  | cons y ys ih =>
+    intro x h z hz
+    have j := unfold_increasing_list_once h
+    cases j with
+    | intro l r
+    have n := ih y r z
+    cases hz with
+    | head => exact l
+    | tail s w => exact trans (n w) l
 
 theorem ftto : IncreasingListP [4, 3, 2, 1] := by
   apply list_increasing_if_contents_are
@@ -75,11 +93,11 @@ def subtractIncreasingListA ( l1 l2 : List Nat) (h : IncreasingListP l1) (h' : I
   | x :: xs, y :: ys =>
     -- if the head of the second list is bigger than the head of the first list, it
     -- cannot be in the first list, so we recurse on the tail of the second list
-    if x < y then subtractIncreasingListA (x :: xs) ys h (child_list_increasing_if_parent_is h')
+    if x < y then subtractIncreasingListA (x :: xs) ys h (child_list_increasing_if_parent_is ys h')
     -- if the head of the second list is equal to the head of the first list, we remove it from the first list
-    else if x == y then subtractIncreasingListA xs ys (child_list_increasing_if_parent_is h) (child_list_increasing_if_parent_is h')
+    else if x == y then subtractIncreasingListA xs ys (child_list_increasing_if_parent_is xs h) (child_list_increasing_if_parent_is ys h')
     -- if the head of the second list is smaller than the head of the first list, it might match later, so we keep it in the first list
-    else x :: subtractIncreasingListA xs (y::ys) (child_list_increasing_if_parent_is h) h'
+    else x :: subtractIncreasingListA xs (y::ys) (child_list_increasing_if_parent_is xs h) h'
 
 theorem fd : IncreasingListP [5, 4, 3, 2, 1] := by
   apply list_increasing_if_contents_are
@@ -177,11 +195,63 @@ theorem unsafe_subtract_generates_subset (l1 : List Nat) : ∀ l2, (unsafeSubtra
       case pos => simp [c1]; exact hyp2
       case neg =>
         by_cases c2 : z == w
-        simp [c1, c2]
         case pos => simp [c1, c2, hyp1 ws]
         case neg  => simp [c1, c2, hyp1 (w::ws)]
 
--- unkfun x xs someev : x::xs is increasing
+open List
+
+example {α : Type} {qh : α} {qt a : List α}
+    (hsub : (qh :: qt) ⊆ a) : qh ∈ a := by
+  -- unfold Subset to use it
+  apply hsub
+  -- prove qh ∈ qh :: qt
+  apply mem_cons_self
+
+example {α : Type} (q a : List α) (hsub : q ⊆ a) :
+    q = [] ∨ ∃ qh qt, q = qh :: qt ∧ qh ∈ a := by
+  cases q with
+  | nil =>
+    left
+    rfl
+  | cons qh qt =>
+    right
+    apply Exists.intro qh
+    apply Exists.intro qt
+    apply And.intro
+    · rfl
+    · apply hsub
+      apply mem_cons_self
+
+theorem unsafe_subtract_generates_increasing (l1 : List Nat) (h : IncreasingListP l1):  ∀ l2, IncreasingListP (unsafeSubtract l1 l2) := by
+  induction l1 with
+  | nil => unfold unsafeSubtract; simp; exact IncreasingListP.nil
+  | cons z zs hyp1 =>
+    intro l2
+    induction l2 with
+    | nil => unfold unsafeSubtract; exact h
+    | cons w ws hyp2 =>
+      unfold unsafeSubtract
+      by_cases c1 : z < w
+      case pos => simp [c1]; exact hyp2
+      case neg =>
+      by_cases c2 : z == w
+      case pos => simp [c1, c2]; exact hyp1 (child_list_increasing_if_parent_is zs h) ws
+      case neg =>
+        simp [c1, c2];
+        simp [child_list_increasing_if_parent_is zs h] at hyp1;
+        generalize q : unsafeSubtract zs (w :: ws) = qq
+        cases qq with
+        | nil => exact IncreasingListP.single z
+        | cons qh qt =>
+          have k := unsafe_subtract_generates_subset zs (w::ws)
+          have j := hyp1 (w::ws)
+          have t := head_is_bigger_than_all_the_rest zs z h
+          rw [q] at j k
+          have qhmem : qh ∈ zs := by
+            apply k
+            apply List.mem_cons_self
+          have jj := t qh qhmem
+          exact IncreasingListP.cons z j jj
 
 instance [LT α] [ToString α] : ToString (IncreasingList α) where
   toString l := l.xs.toString
