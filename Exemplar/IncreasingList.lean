@@ -9,9 +9,10 @@ def unsafeSubtract (l1 l2 : List Nat) : List Nat :=
   | [], _ => []
   | _, [] => l1
   | x :: xs, y :: ys =>
-    if x < y then unsafeSubtract (x :: xs) ys
-    else if x == y then unsafeSubtract xs ys
-    else x :: unsafeSubtract xs (y::ys)
+    match compare x y with
+    | .lt => unsafeSubtract (x :: xs) ys
+    | .eq => unsafeSubtract xs ys
+    | .gt => x :: unsafeSubtract xs (y :: ys)
 
 #eval unsafeSubtract [5, 4, 3, 2, 1] [1, 2, 3]
 
@@ -91,13 +92,10 @@ def subtractIncreasingListA ( l1 l2 : List Nat) (h : IncreasingListP l1) (h' : I
   | [], _ => []
   | _, [] => l1
   | x :: xs, y :: ys =>
-    -- if the head of the second list is bigger than the head of the first list, it
-    -- cannot be in the first list, so we recurse on the tail of the second list
-    if x < y then subtractIncreasingListA (x :: xs) ys h (child_list_increasing_if_parent_is ys h')
-    -- if the head of the second list is equal to the head of the first list, we remove it from the first list
-    else if x == y then subtractIncreasingListA xs ys (child_list_increasing_if_parent_is xs h) (child_list_increasing_if_parent_is ys h')
-    -- if the head of the second list is smaller than the head of the first list, it might match later, so we keep it in the first list
-    else x :: subtractIncreasingListA xs (y::ys) (child_list_increasing_if_parent_is xs h) h'
+  match compare x y with
+  | .lt => subtractIncreasingListA (x :: xs) ys h (child_list_increasing_if_parent_is ys h')
+  | .eq => subtractIncreasingListA xs ys (child_list_increasing_if_parent_is xs h) (child_list_increasing_if_parent_is ys h')
+  | .gt => x :: subtractIncreasingListA xs (y :: ys) (child_list_increasing_if_parent_is xs h) h'
 
 theorem fd : IncreasingListP [5, 4, 3, 2, 1] := by
   apply list_increasing_if_contents_are
@@ -144,38 +142,10 @@ theorem unify_ineq [LT α][Trans LT.lt LT.lt (@LT.lt α _)] (xs: List α) (x: α
 
 
 
--- we can fix this by wrapping the result in a structure that has the IncreasingListP predicate
-
-def subtractIncreasingList ( l1 l2 : IncreasingList Nat) : IncreasingList Nat :=
-  match l1, l2 with
-  | ⟨[], _⟩, _ => l1
-  | _, ⟨[], _⟩ => l1
-  | ⟨x :: xs, h⟩, ⟨y :: ys, h'⟩ =>
-    -- if the head of the second list is bigger than the head of the first list, it
-    -- cannot be in the first list, so we recurse on the tail of the second list
-    if x < y then subtractIncreasingList ⟨x :: xs, h⟩ ⟨ys, child_list_increasing_if_parent_is h'⟩
-    -- if the head of the second list is smaller than the head of the first list, it might match later, so we keep it in the first list
-    else if h3 : y < x then
-      let leftovers := subtractIncreasingList ⟨xs, child_list_increasing_if_parent_is h⟩ ⟨y::ys, h'⟩
-      match leftovers with
-      | ⟨[], _⟩ => ⟨ [x], IncreasingListP.single x ⟩
-      | ⟨z :: zs, h4⟩ => IncreasingList.cons x z zs h4 _
-    -- if the head of the second list is equal to the head of the first list, we remove it from the first list
-    else subtractIncreasingList ⟨xs, child_list_increasing_if_parent_is h⟩ ⟨ys, child_list_increasing_if_parent_is h'⟩
 
 -- However, it's not possible to prove that zs are a subset of x::xs yet, and thus we cannot prove z is less than x
 
 -- Let's try to prove things about the bare unsafe function
-
-/-def unsafeSubtract (l1 l2 : List Nat) : List Nat :=
-  match l1, l2 with
-  | [], _ => []
-  | _, [] => l1
-  | x :: xs, y :: ys =>
-    if x < y then unsafeSubtract (x :: xs) ys
-    else if x == y then unsafeSubtract xs ys
-    else x :: unsafeSubtract xs (y::ys)
--/
 
 theorem member_lemma_lists_one : a ∈ xs -> a ∈ x::xs := by
   intro h
@@ -184,19 +154,18 @@ theorem member_lemma_lists_one : a ∈ xs -> a ∈ x::xs := by
 
 theorem unsafe_subtract_generates_subset (l1 : List Nat) : ∀ l2, (unsafeSubtract l1 l2) ⊆ l1 := by
   induction l1 with
-  | nil => unfold unsafeSubtract; simp
+  | nil => intro l2; unfold unsafeSubtract; simp
   | cons z zs hyp1 =>
     intro l2
     induction l2 with
     | nil => unfold unsafeSubtract; simp
     | cons w ws hyp2 =>
       unfold unsafeSubtract
-      by_cases c1 : z < w
-      case pos => simp [c1]; exact hyp2
-      case neg =>
-        by_cases c2 : z == w
-        case pos => simp [c1, c2, hyp1 ws]
-        case neg  => simp [c1, c2, hyp1 (w::ws)]
+      match compare z w with
+      | .lt => exact hyp2
+      | .eq => simp [hyp1 ws]
+      | .gt => simp [hyp1 (w::ws)]
+
 
 open List
 
@@ -231,13 +200,10 @@ theorem unsafe_subtract_generates_increasing (l1 : List Nat) (h : IncreasingList
     | nil => unfold unsafeSubtract; exact h
     | cons w ws hyp2 =>
       unfold unsafeSubtract
-      by_cases c1 : z < w
-      case pos => simp [c1]; exact hyp2
-      case neg =>
-      by_cases c2 : z == w
-      case pos => simp [c1, c2]; exact hyp1 (child_list_increasing_if_parent_is zs h) ws
-      case neg =>
-        simp [c1, c2];
+      match compare z w with
+      | .lt => exact hyp2
+      | .eq => exact hyp1 (child_list_increasing_if_parent_is zs h) ws
+      | .gt =>
         simp [child_list_increasing_if_parent_is zs h] at hyp1;
         generalize q : unsafeSubtract zs (w :: ws) = qq
         cases qq with
